@@ -1,0 +1,39 @@
+{
+  "name": "rdev-academy",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node --experimental-strip-types --no-warnings scripts/kb.ts check-bundle dist",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test": "node --experimental-strip-types --no-warnings --test tests/*.test.ts",
+    "test:db": "python3 database/tests/test_db.py",
+    "kb": "node --experimental-strip-types --no-warnings scripts/kb.ts",
+    "kb:validate": "node --experimental-strip-types --no-warnings scripts/kb.ts validate",
+    "kb:bootstrap": "node --experimental-strip-types --no-warnings scripts/kb.ts bootstrap",
+    "kb:snapshot": "node --experimental-strip-types --no-warnings scripts/kb.ts snapshot",
+    "kb:check-bundle": "node --experimental-strip-types --no-warnings scripts/kb.ts check-bundle",
+    "db:statements": "node --experimental-strip-types --no-warnings scripts/sql-statements.ts"
+  },
+  "dependencies": {
+    "hono": "^4.7.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.0.0",
+    "@cloudflare/workers-types": "^4.20250214.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.1.0",
+    "wrangler": "^4.0.0"
+  }
+}

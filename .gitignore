@@ -1,0 +1,15 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+.env
+*.log
+.DS_Store
+
+# --- Unpublished knowledge: keep out of any PUBLIC repository --------------------------------------
+# The Markdown lessons/references and the generated bootstrap proposal SQL are unapproved, AI-assisted
+# content. They are intentionally NOT committed by default. If (and only if) your repository is PRIVATE and
+# you want them versioned, delete the three lines below. The deployed site never reads these folders.
+content/lessons/
+content/reference/
+database/bootstrap/

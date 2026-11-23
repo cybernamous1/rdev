@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#071512" />
+    <meta name="description" content="A free, independent learning hub for Roblox development. Create. Learn. Develop." />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>RDev Academy — Create. Learn. Develop.</title>
+    <script>
+      // Apply saved appearance before first paint so there is no theme flash. Failure is harmless.
+      try {
+        var p = JSON.parse(localStorage.getItem('rdev-prefs') || '{}'), r = document.documentElement;
+        if (p.theme) r.dataset.theme = p.theme;
+        if (p.density) r.dataset.density = p.density;
+        r.dataset.motion = p.reducedMotion ? 'reduced' : 'full';
+        if (p.fontScale) r.style.setProperty('--font-scale', p.fontScale);
+        var c = { arctic: '#f2f8f6', heritage: '#f4efe4', obsidian: '#111016', oceanic: '#071321', nebula: '#160d20' }[p.theme];
+        if (c) document.querySelector('meta[name=theme-color]').setAttribute('content', c);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript><p style="padding:2rem;font-family:sans-serif">RDev Academy needs JavaScript to run. It has no accounts, trackers or sign-in.</p></noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

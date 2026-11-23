@@ -1,0 +1,4 @@
+[
+  {"id":"fx-source-a","label":"Fixture source A","url":"https://example.org/fixtures/a","publisher":"Example Org","license":null,"status":"unchecked","retrievedAt":null,"contentHash":null},
+  {"id":"fx-source-b","label":"Fixture source B","url":"https://example.org/fixtures/b","publisher":"Example Org","license":null,"status":"unchecked","retrievedAt":null,"contentHash":null}
+]
