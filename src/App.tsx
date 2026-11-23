@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppProvider } from './app/context.tsx';
 import { NotifyProvider } from './app/helpers.tsx';
 import { useRoute } from './app/router.ts';
@@ -13,6 +13,9 @@ import { Search } from './pages/Search.tsx';
 import { Playground } from './pages/Playground.tsx';
 import { Explorer } from './pages/Explorer.tsx';
 import { Bookmarks, Progress, Settings, About } from './pages/Personal.tsx';
+
+// The owner console is a separate lazily loaded chunk: learners never download or execute it.
+const Owner = lazy(() => import('./pages/Owner.tsx').then((m) => ({ default: m.Owner })));
 
 function Pages() {
   const route = useRoute();
@@ -35,7 +38,10 @@ function Pages() {
 }
 
 export default function App() {
+  const route = useRoute();
   const [init, setInit] = useState<InitResult | null>(null);
+  // The private owner route is independent of learner initialization (IndexedDB, library, sync), so it can never block or alter it.
+  if (route.segments[0] === 'owner') return <Suspense fallback={null}><Owner /></Suspense>;
   if (!init) return <Splash onReady={setInit} />;
   return <AppProvider init={init}><NotifyProvider><Pages /></NotifyProvider></AppProvider>;
 }

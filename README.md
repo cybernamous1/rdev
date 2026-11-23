@@ -11,7 +11,7 @@ A corrected architecture on the intended stack: **React · TypeScript · Vite ·
 * **Public content is approval-gated.** The deployed site, its bundles, static assets and public API contain only content the owner has approved and published. Until then the app shows a "library is being prepared" state. The 26 lessons and 10 references exist only as **pending, AI-assisted, unreviewed proposals** (see `database/bootstrap`).
 * **D1 is the single authoritative knowledge database** (schema prepared, never executed by any script here). Published knowledge is versioned, immutable and rollback-able; the public API serves only each package's *current* version.
 * **Startup never waits on the network.** Local storage, preferences, bundled snapshot, stored packages and the search index load first. The service check and updates run in the background after first render.
-* **Not implemented yet (by design):** owner authentication, the proposal/review/publish interface, and the automated publishing pipeline. `/api/admin/*` answers 404.
+* **Owner console:** a private, token-authenticated interface (`/#/owner`, `/api/admin/*`) to review proposals, register/check sources, publish approved content and roll back. **Not implemented yet (by design):** the automated publishing pipeline (scheduled retrieval, extraction and proposal generation remain CLI/manual).
 
 ## Learner experience
 
@@ -61,3 +61,8 @@ See the *Validation* section of `docs/deployment.md`. In short: tests listed abo
 * Content is AI-assisted and unreviewed until a human review is recorded; "published" means approved for display, not verified.
 * Source links are "not machine-checked" until `kb sources --fetch` runs with network access.
 * Learner data does not sync across devices (manual JSON export/restore only).
+
+
+## Owner console
+
+The private owner console is available at `/#/owner` after configuring the `OWNER_ADMIN_TOKEN` Worker secret. See [docs/owner-console.md](docs/owner-console.md) for setup, security behavior, supported operations, and current limitations. The learner website remains accountless.

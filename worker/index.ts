@@ -1,11 +1,12 @@
-// RDev Academy Worker (Hono). Public, read-only API under /api/v1 plus static assets.
-// No accounts, no authentication and no write endpoints exist in this version. Owner-only management
-// routes (/api/admin/*) are intentionally NOT implemented yet and answer 404.
+// RDev Academy Worker (Hono). Public, read-only learner API under /api/v1 plus static assets.
+// Learners have no accounts and no write endpoints. Owner-only management routes (/api/admin/*) live in
+// admin-api.ts: they require the OWNER_ADMIN_TOKEN Worker secret and a server-side session on every request.
 import { Hono } from 'hono';
+import { adminApi, type AdminEnv } from './admin-api.ts';
 import { API_VERSION, SERVICE, databaseReady, getPublishedPackageBody, listPublishedPackages, listPublishedSources, type Db } from './public-api.ts';
 import { isValidVersion } from '../shared/semver.ts';
 
-export type Env = { DB?: Db; ASSETS: { fetch(request: Request): Promise<Response> } };
+export type Env = { DB?: Db; OWNER_ADMIN_TOKEN?: string; ASSETS: { fetch(request: Request): Promise<Response> } };
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const JSON_TYPE = 'application/json; charset=utf-8';
@@ -64,7 +65,14 @@ app.get('/api/v1/sources', async (c) => {
   catch { return c.json({ error: 'Knowledge database is unavailable or not initialized.' }, 503, { 'Cache-Control': 'no-store' }); }
 });
 
-// Everything else under /api: GET/HEAD → 404 (this includes /api/admin/*), other methods → 405.
+// Private owner API. Authentication, origin checks and all writes are validated server-side in admin-api.ts.
+// The public Db type is read-only; the same D1 binding also provides run()/batch(), which admin-api.ts checks for.
+app.all('/api/admin/*', async (c) => {
+  const response = await adminApi(c.req.raw, c.env as unknown as AdminEnv);
+  return response || c.json({ error: 'Owner endpoint not found.' }, 404, { 'Cache-Control': 'no-store' });
+});
+
+// Everything else under /api: GET/HEAD → 404, other methods → 405.
 app.all('/api/*', (c) => (c.req.method === 'GET' || c.req.method === 'HEAD'
   ? c.json({ error: 'Not found' }, 404, { 'Cache-Control': 'no-store' })
   : c.json({ error: 'Method not allowed' }, 405, { 'Cache-Control': 'no-store', Allow: 'GET, HEAD' })));

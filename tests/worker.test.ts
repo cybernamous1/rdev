@@ -63,11 +63,12 @@ test('API: updates and rollback — only the CURRENT version is served', async (
   assert.ok(!v1.entries.some((e) => e.title.endsWith('(revised)')));
 });
 
-test('API: admin and unknown routes are 404, writes are 405, no database is handled', async () => {
+test('API: owner routes require authentication while public API stays read-only', async () => {
   const raw = newDatabase(); const env: Env = { DB: asDb(raw), ASSETS: assets };
-  for (const p of ['/api/admin', '/api/admin/proposals', '/api/admin/login', '/api/v1/proposals', '/api/knowledge', '/api/health']) assert.equal((await get(env, p)).status, 404, p);
+  for (const p of ['/api/admin/proposals', '/api/admin/overview']) assert.equal((await get(env, p)).status, 401, p);
+  assert.equal((await get(env, '/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost' }, body: JSON.stringify({ token: 'x'.repeat(40) }) })).status, 503, 'owner secret must be configured');
+  for (const p of ['/api/v1/proposals', '/api/knowledge', '/api/health']) assert.equal((await get(env, p)).status, 404, p);
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) assert.equal((await get(env, '/api/v1/packages', { method })).status, 405, method);
-  assert.equal((await get(env, '/api/admin/login', { method: 'POST' })).status, 405);
   const none: Env = { ASSETS: assets };
   const h = await json(await get(none, '/api/v1/health')); assert.deepEqual([h.databaseConfigured, h.databaseReady], [false, false]);
   for (const p of ['/api/v1/packages', '/api/v1/sources', '/api/v1/packages/rdev-luau/1.0.0']) assert.equal((await get(none, p)).status, 503, p);

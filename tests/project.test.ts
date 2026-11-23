@@ -27,9 +27,14 @@ test('intended stack is restored and unnecessary dependencies stay out', () => {
   assert.match(read('worker/index.ts'), /from 'hono'/);
 });
 
-test('learner principles: no accounts, no external AI services, no admin implementation yet', () => {
-  const files = ['worker/index.ts', 'worker/public-api.ts', 'src/App.tsx', 'src/services/initialize.ts', 'src/services/platform.ts'].map(read).join('\n');
-  assert.ok(!/api\.openai|api\.anthropic|generativelanguage|oauth|sign[- ]?in|register/i.test(files));
-  assert.ok(!existsSync(join(ROOT, 'worker', 'admin.ts')));
-  assert.ok(!/Set-Cookie|ADMIN_TOKEN/.test(read('worker/index.ts')), 'admin authentication is not implemented yet');
+test('learner remains accountless while owner administration is isolated', () => {
+  const learnerFiles = ['worker/public-api.ts', 'src/App.tsx', 'src/services/initialize.ts', 'src/services/platform.ts'].map(read).join('\n');
+  assert.ok(!/api\.openai|api\.anthropic|generativelanguage|oauth|learner[- ]?sign[- ]?in|learner[- ]?register/i.test(learnerFiles));
+  assert.ok(existsSync(join(ROOT, 'worker', 'admin-api.ts')));
+  assert.match(read('src/App.tsx'), /segments\[0\] === 'owner'/);
+  assert.match(read('src/App.tsx'), /lazy\(\(\) => import\('\.\/pages\/Owner\.tsx'\)/, 'owner console must be a lazily loaded chunk');
+  assert.ok(!/admin_sessions|login_attempts|security_events|proposals/.test(read('worker/public-api.ts').replace(/^\/\/.*$/gm, '')), 'public API must never query admin or proposal tables');
+  assert.ok(!/\/api\/admin/.test(read('public/sw.js')) && /startsWith\('\/api\/'\)/.test(read('public/sw.js')), 'service worker never caches /api');
+  assert.ok(read('worker/index.ts').includes("app.all('/api/admin/*'"));
+  assert.ok(read('worker/admin-api.ts').includes('OWNER_ADMIN_TOKEN'));
 });

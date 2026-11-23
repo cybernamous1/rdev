@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "rdev",
+  "name": "rdev-academy",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-22",
   "compatibility_flags": ["nodejs_compat"],
@@ -12,8 +12,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "rdev-db",
-      "database_id": "ec0e6b33-03e5-422c-a8d0-afd3418401ce"
+      "database_name": "rdev-academy-knowledge",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
     }
   ]
 }
