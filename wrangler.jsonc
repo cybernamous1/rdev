@@ -12,8 +12,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "rdev-academy-knowledge",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+      "database_name": "rdev-db",
+      "database_id": "df71e7b2-29e8-4bd5-9858-90e4c156e1e6"
     }
   ]
 }
