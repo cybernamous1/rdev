@@ -220,4 +220,8 @@ select,.inline-form input,textarea{background:var(--surface);border:1px solid va
 .owner-footer{padding:1.5rem 0;color:var(--muted);font-size:.75rem;text-align:center}
 .source-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-top:1rem}
 .source-form button{grid-column:1/-1;justify-self:start}
+/* Discovery panel (v0.4.0) */
+.owner-wrap .owner-warn{border-color:var(--err)}
+.owner-wrap .proposal-actions select{width:auto;min-width:0;flex:1 1 12rem}
+.owner-wrap code{font-size:.8rem;overflow-wrap:anywhere}
 @media(max-width:650px){.owner-header{flex-direction:column}.owner-header-actions{width:100%;justify-content:space-between}.owner-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-section-head{align-items:flex-start;flex-direction:column}.owner-row{align-items:flex-start;flex-direction:column}.source-form{grid-template-columns:1fr}}

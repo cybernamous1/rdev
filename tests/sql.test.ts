@@ -50,7 +50,7 @@ test('init.sql refuses to run over legacy tables (loud failure before anything i
 test('system records and strict version constraints', () => {
   const db = newDatabase();
   assert.equal((db.prepare('SELECT COUNT(*) c FROM packages WHERE current_version IS NULL').get() as { c: number }).c, 8);
-  assert.equal((db.prepare("SELECT value FROM schema_info WHERE key='schema_version'").get() as { value: string }).value, '0.3.0');
+  assert.equal((db.prepare("SELECT value FROM schema_info WHERE key='schema_version'").get() as { value: string }).value, '0.4.0');
   const ins = (v: string) => db.prepare("INSERT INTO package_versions(package_id,version,checksum,entry_count,body) VALUES ('rdev-art',?,'c',0,?)").run(v, JSON.stringify({ id: 'rdev-art', version: v, checksum: 'c', entries: [] }));
   for (const v of ['0.0.0', '1.10.2', '123456789.0.1']) ins(v);
   for (const v of ['1.0', '01.0.0', '1.0.0-rc', '1..0', '1.0.0\n', '١.٠.٠', 'v1.0.0']) assert.throws(() => ins(v), /CHECK|constraint/i, JSON.stringify(v));
@@ -76,4 +76,18 @@ test('private bootstrap files (only when present) respect the statement limit an
   for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) { const sql = readFileSync(join(dir, f), 'utf8'); for (const s of splitStatements(sql)) assert.ok(Buffer.byteLength(s) < D1_STATEMENT_LIMIT, f); db.exec(sql); }
   assert.equal((db.prepare("SELECT COUNT(*) c FROM proposals WHERE status='pending' AND origin='bootstrap'").get() as { c: number }).c, 36);
   for (const t of ['entries', 'entry_versions', 'package_versions', 'publications']) assert.equal((db.prepare(`SELECT COUNT(*) c FROM ${t}`).get() as { c: number }).c, 0);
+});
+
+test('upgrade-0.4.0.sql turns a v0.3.0 database into exactly the v0.4.0 schema, keeping existing data', async () => {
+  const legacy = join(ROOT, 'database', 'tests', 'legacy', 'v0.3.0-schema.sql'); const upgrade = readFileSync(join(ROOT, 'database', 'upgrade-0.4.0.sql'), 'utf8');
+  const old = new DatabaseSync(':memory:'); old.exec(readFileSync(legacy, 'utf8')); await loadBootstrap(old); await approveAndPublishPath(old, 'Luau Programming');
+  const pointer = () => (old.prepare("SELECT current_version v FROM packages WHERE id='rdev-luau'").get() as { v: string }).v;
+  const before = [pointer(), (old.prepare('SELECT COUNT(*) c FROM proposals').get() as { c: number }).c];
+  old.exec(upgrade);
+  assert.deepEqual(names(old), names(newDatabase()), 'upgraded schema equals a fresh v0.4.0 init');
+  assert.deepEqual([pointer(), (old.prepare('SELECT COUNT(*) c FROM proposals').get() as { c: number }).c], before, 'published content and proposals untouched');
+  assert.equal((old.prepare("SELECT value FROM schema_info WHERE key='schema_version'").get() as { value: string }).value, '0.4.0');
+  assert.throws(() => old.exec(upgrade), /already exists/i, 'running the upgrade twice fails loudly');
+  const stmts = splitStatements(upgrade); for (const s of stmts) assert.ok(Buffer.byteLength(s) < D1_STATEMENT_LIMIT / 10 && !/^\s*(PRAGMA|BEGIN|COMMIT|ROLLBACK)\b/i.test(s.replace(/--[^\n]*\n/g, '').trim()));
+  const piece = new DatabaseSync(':memory:'); piece.exec(readFileSync(legacy, 'utf8')); for (const s of stmts) piece.exec(s); assert.deepEqual(names(piece), names(old), 'statement-by-statement upgrade works');
 });

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RDev Academy v0.3.0 database tests (SQLite, foreign keys ON).
+"""RDev Academy v0.4.0 database tests (SQLite, foreign keys ON).
    Usage: python3 database/tests/test_db.py     (npm run test:db)     Requires: Python 3.9+, Node >= 22.6.
    Uses synthetic fixtures by default (tests/fixtures/content); set RDEV_DB_TEST_CONTENT=real to test database/bootstrap.
    Paths are relative to the repository. SQLite is not Cloudflare D1: re-run against `wrangler dev` / D1 before trusting it."""

@@ -1,6 +1,6 @@
 # RDev Academy
 
-**Create. Learn. Develop.** A free, independent learning hub for Roblox development. Version **0.3.0**.
+**Create. Learn. Develop.** A free, independent learning hub for Roblox development. Version **0.4.0** (owner console with knowledge discovery).
 
 No learner accounts, registration, login, OAuth, subscriptions or paywalls. Bookmarks, notes, preferences and progress stay in the browser (IndexedDB). No external hosted AI service is used.
 
@@ -11,7 +11,7 @@ A corrected architecture on the intended stack: **React · TypeScript · Vite ·
 * **Public content is approval-gated.** The deployed site, its bundles, static assets and public API contain only content the owner has approved and published. Until then the app shows a "library is being prepared" state. The 26 lessons and 10 references exist only as **pending, AI-assisted, unreviewed proposals** (see `database/bootstrap`).
 * **D1 is the single authoritative knowledge database** (schema prepared, never executed by any script here). Published knowledge is versioned, immutable and rollback-able; the public API serves only each package's *current* version.
 * **Startup never waits on the network.** Local storage, preferences, bundled snapshot, stored packages and the search index load first. The service check and updates run in the background after first render.
-* **Owner console:** a private, token-authenticated interface (`/#/owner`, `/api/admin/*`) to review proposals, register/check sources, publish approved content and roll back. **Not implemented yet (by design):** the automated publishing pipeline (scheduled retrieval, extraction and proposal generation remain CLI/manual).
+* **Owner console:** a private, token-authenticated interface (`/#/owner`, `/api/admin/*`) to review proposals, register/check sources, publish approved content and roll back. **Knowledge discovery (v0.4.0):** owner-triggered discovery of candidate sources, owner approval of sources, retrieval/extraction/classification into pending proposals, duplicate/outdated/source-change detection, and two separate review queues. **Not implemented (by design):** scheduled/unattended retrieval and any automatic approval or publication.
 
 ## Learner experience
 

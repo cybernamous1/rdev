@@ -1,6 +1,7 @@
-# Architecture (v0.3.0)
+# Architecture (v0.4.0)
 
 ```
+  discovery roots ► candidate sources (pending) ► OWNER approves ► ledger ► extract ► (below)
                     ┌────────────── owner-only (/#/owner) ───────────────┐
  sources ─► acquire ─► extract ─► classify ─► relate ─► validate ─► duplicates/conflicts ─► PROPOSALS (pending, D1)
                                                                                     │ review ► approve ► publish

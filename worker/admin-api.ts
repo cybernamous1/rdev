@@ -4,6 +4,7 @@
 // previously published version). Public reads are served only from packages.current_version.
 import { validatePackage, computeChecksum, type Entry, type RlfPackage } from '../shared/rlf.ts';
 import { isValidVersion, nextVersion } from '../shared/semver.ts';
+import { discoveryApi } from './discovery-api.ts';
 
 export type AdminStmt = { bind(...v: unknown[]): AdminStmt; run(): Promise<any>; first<T = any>(): Promise<T | null>; all<T = any>(): Promise<{ results: T[] }> };
 export type AdminDb = { prepare(sql: string): AdminStmt; batch(statements: AdminStmt[]): Promise<any[]> };
@@ -130,8 +131,19 @@ async function route(request: Request, env: AdminEnv, db: AdminDb, path: string)
   if (path === '/api/admin/proposals' && request.method === 'GET') {
     const status = url.searchParams.get('status') || 'pending';
     if (!['pending', 'approved', 'rejected', 'published', 'superseded', 'all'].includes(status)) return json({ error: 'Invalid proposal status.' }, 400);
-    const rows = await db.prepare(`SELECT id,kind,target_entry_id,base_version,title,rationale,payload_json,analysis_json,origin,status,created_at,reviewed_at,review_note FROM proposals ${status === 'all' ? '' : 'WHERE status=?'} ORDER BY created_at DESC, id DESC LIMIT 200`).bind(...(status === 'all' ? [] : [status])).all();
-    return json({ proposals: rows.results.map(({ payload_json, analysis_json, ...r }: any) => ({ ...r, payload: safeJson(payload_json), analysis: safeJson(analysis_json) })) });
+    const where = status === 'all' ? '' : 'WHERE p.status=?'; const binds = status === 'all' ? [] : [status];
+    let rows: { results: any[] };
+    try {
+      // v0.4.0: pipeline proposals carry provenance (source, extraction hash) and a stale flag when the source changed since extraction.
+      rows = await db.prepare(`SELECT p.id,p.kind,p.target_entry_id,p.base_version,p.title,p.rationale,p.payload_json,p.analysis_json,p.origin,p.status,p.created_at,p.reviewed_at,p.review_note,
+        pp.source_id AS prov_source_id,pp.source_url AS prov_source_url,pp.content_hash AS prov_hash,
+        CASE WHEN pp.proposal_id IS NULL THEN NULL WHEN (SELECT content_hash FROM extraction_runs WHERE source_id=pp.source_id AND status<>'failed' ORDER BY id DESC LIMIT 1) <> pp.content_hash THEN 1 ELSE 0 END AS source_changed
+        FROM proposals p LEFT JOIN proposal_provenance pp ON pp.proposal_id=p.id ${where} ORDER BY p.created_at DESC, p.id DESC LIMIT 200`).bind(...binds).all();
+    } catch (e) {
+      if (!/no such table/i.test((e as Error).message)) throw e; // database not yet upgraded to v0.4.0: behave exactly as v0.3.0
+      rows = await db.prepare(`SELECT id,kind,target_entry_id,base_version,title,rationale,payload_json,analysis_json,origin,status,created_at,reviewed_at,review_note FROM proposals ${status === 'all' ? '' : 'WHERE status=?'} ORDER BY created_at DESC, id DESC LIMIT 200`).bind(...binds).all();
+    }
+    return json({ proposals: rows.results.map(({ payload_json, analysis_json, prov_source_id, prov_source_url, prov_hash, source_changed, ...r }: any) => ({ ...r, payload: safeJson(payload_json), analysis: safeJson(analysis_json), provenance: prov_source_id ? { sourceId: prov_source_id, sourceUrl: prov_source_url, contentHash: prov_hash, sourceChanged: source_changed === 1 } : null })) });
   }
 
   const reviewMatch = path.match(/^\/api\/admin\/proposals\/(\d{1,12})\/review$/);
@@ -226,6 +238,15 @@ async function route(request: Request, env: AdminEnv, db: AdminDb, path: string)
     return json({ success: true, packageId, version: body.version, previousVersion: pkg.current_version });
   }
 
+  const discovery = await discoveryApi({
+    db, request, url, path, sessionId, validSlug,
+    json: (data, status) => json(data, status),
+    readJson,
+    audit: (name, detail) => audit(db, name, 'info', detail),
+    auditStmt: (name, detail) => auditStmt(db, name, detail, sessionId)
+  });
+  if (discovery) return discovery;
+
   return json({ error: 'Owner endpoint not found.' }, 404);
 }
 
@@ -235,6 +256,11 @@ async function publishApprovedProposal(db: AdminDb, packageId: string, proposalI
   const fail = (status: number, error: string): PublishResult => ({ ok: false, status, error });
   const proposal = await db.prepare("SELECT id,kind,target_entry_id,base_version,payload_json FROM proposals WHERE id=? AND status='approved'").bind(proposalId).first<any>();
   if (!proposal) return fail(409, 'Only an approved proposal can be published.');
+  // v0.4.0: content extracted from a source that has changed since extraction is stale and must be re-extracted and re-reviewed.
+  try {
+    const stale = await db.prepare("SELECT 1 AS stale FROM proposal_provenance pp WHERE pp.proposal_id=? AND (SELECT content_hash FROM extraction_runs WHERE source_id=pp.source_id AND status<>'failed' ORDER BY id DESC LIMIT 1) <> pp.content_hash").bind(proposalId).first();
+    if (stale) return fail(409, 'The source has changed since this content was extracted. Re-extract it and review the new proposal; this stale proposal cannot be published.');
+  } catch (e) { if (!/no such table/i.test((e as Error).message)) throw e; }
   const packageRow = await db.prepare('SELECT id,title,description,current_version FROM packages WHERE id=?').bind(packageId).first<any>();
   if (!packageRow) return fail(404, 'Package does not exist.');
 

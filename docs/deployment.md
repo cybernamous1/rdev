@@ -1,4 +1,4 @@
-# Deployment and validation (v0.3.0)
+# Deployment and validation (v0.4.0)
 
 **Nothing has been deployed, pushed, published or executed against Cloudflare.**
 
@@ -18,6 +18,8 @@
 
 1. `npm ci && npm run typecheck && npm test && npm run test:db && npm run build`, and `npm run dev` for local D1 emulation.
 2. Create the D1 database; put its id into `wrangler.jsonc` (replace `REPLACE_WITH_YOUR_D1_DATABASE_ID`) or remove the `d1_databases` block to run without a database.
-3. Initialize and bootstrap it (see `database/README.md`). Pending proposals remain private.
+3. Initialize and bootstrap it (see `database/README.md`). Pending proposals remain private. **Existing v0.3.0 database:** back it up, then apply `database/upgrade-0.4.0.sql` once (additive; run only after your explicit decision). Deploy the Worker after the upgrade; before it, discovery reports that the upgrade is missing and everything else works as in v0.3.0.
 4. Connect the repository to a Worker (Workers Builds): build `npm run build`, deploy `npx wrangler deploy`. The site works with an empty database.
 5. Later phases: owner authentication, review/publish UI, pipeline.
+
+**v0.4.0 validation:** local TypeScript checks, Vite build and unpublished-content bundle check pass. The test suites were not run for this update because they execute SQL against SQLite; no live D1, deployment or live source sites were used.

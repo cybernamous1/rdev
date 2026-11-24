@@ -2,8 +2,9 @@
 // All authority lives in the Worker: this UI only calls /api/admin/* with a same-origin HttpOnly session cookie.
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Icon } from '../components/Icon.tsx';
+import { OwnerDiscovery } from './OwnerDiscovery.tsx';
 
-type Proposal = { id: number; kind: string; target_entry_id: string; title: string; rationale: string | null; status: string; origin: string; created_at: string; review_note: string | null; payload: any; analysis: any };
+type Proposal = { id: number; kind: string; target_entry_id: string; title: string; rationale: string | null; status: string; origin: string; created_at: string; review_note: string | null; payload: any; analysis: any; provenance?: { sourceId: string; sourceUrl: string; contentHash: string; sourceChanged: boolean } | null };
 type Pkg = { id: string; title: string; current_version: string | null };
 type Publication = { id: number; package_id: string; version: string; previous_version?: string | null; action: string; note?: string | null; published_at: string };
 type Overview = { counts: { pending: number; approved: number; published: number }; packages: Pkg[]; sources: { id: string; label: string; url: string; publisher: string; license: string | null; status: string; retrieved_at: string | null }[]; publications: Publication[] };
@@ -24,7 +25,7 @@ export function Owner() {
   const [token, setToken] = useState(''); const [busy, setBusy] = useState(false);
   const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const [overview, setOverview] = useState<Overview | null>(null); const [proposals, setProposals] = useState<Proposal[]>([]); const [publications, setPublications] = useState<Publication[]>([]);
-  const [filter, setFilter] = useState('pending'); const [tab, setTab] = useState('overview');
+  const [filter, setFilter] = useState('pending'); const [originFilter, setOriginFilter] = useState('all'); const [tab, setTab] = useState('overview');
   const [notes, setNotes] = useState<Record<number, string>>({}); const [sourceDraft, setSourceDraft] = useState(emptySource);
   const [verify, setVerify] = useState<{ id: number; reviewer: string; notes: string; confirmed: boolean } | null>(null);
   const [rollbackTarget, setRollbackTarget] = useState<Publication | null>(null);
@@ -52,7 +53,7 @@ export function Owner() {
   }, []);
   useEffect(() => { if (auth === 'signed-in') refresh().catch(fail); }, [auth, refresh, fail]);
 
-  const run = async (fn: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await fn(); } catch (e) { fail(e); } finally { setBusy(false); } };
+  const run = useCallback(async (fn: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await fn(); } catch (e) { fail(e); } finally { setBusy(false); } }, [fail]);
   const login = (e: FormEvent) => { e.preventDefault(); void run(async () => { await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ token }) }); setToken(''); setAuth('signed-in'); }); };
   const logout = () => run(async () => { await api('/api/admin/logout', { method: 'POST', body: '{}' }); setAuth('signed-out'); setOverview(null); });
   const review = (id: number, decision: 'approve' | 'reject') => run(async () => { await api(`/api/admin/proposals/${id}/review`, { method: 'POST', body: JSON.stringify({ decision, note: notes[id] || '' }) }); setNotice(decision === 'approve' ? 'Proposal approved. It is not public until you verify and publish it.' : 'Proposal rejected.'); await refresh(); });
@@ -70,6 +71,7 @@ export function Owner() {
     const target = rollbackTarget; if (!target) return;
     void run(async () => { await api(`/api/admin/rollback/${target.package_id}`, { method: 'POST', body: JSON.stringify({ version: target.version, note: 'Owner requested restore from dashboard' }) }); setRollbackTarget(null); setNotice(`${target.package_id} now serves version ${target.version}.`); await refresh(); });
   };
+  const visible = proposals.filter((p) => originFilter === 'all' || p.origin === originFilter);
   const currentOf = (id: string) => overview?.packages.find((p) => p.id === id)?.current_version ?? null;
 
   if (auth === 'checking') return <main className="owner-wrap"><div className="owner-panel" role="status">Checking owner session…</div></main>;
@@ -89,12 +91,12 @@ export function Owner() {
   return (
     <main className="owner-wrap">
       <header className="owner-header">
-        <div><p className="eyebrow">RDEV ACADEMY · PRIVATE CONSOLE</p><h1>Owner Dashboard</h1><p className="muted">Review knowledge proposals and distribute approved learning content.</p></div>
+        <div><p className="eyebrow">RDEV ACADEMY · PRIVATE CONSOLE</p><h1>Owner Dashboard</h1><p className="muted">Discover sources, review extracted knowledge and distribute approved learning content.</p></div>
         <div className="owner-header-actions"><a href="#/home" className="owner-link">Public website ↗</a><button className="quiet-btn" onClick={logout} disabled={busy}>Sign out</button></div>
       </header>
       {error && <div className="owner-error owner-alert" role="alert">{error}</div>}
       {notice && <div className="owner-notice" role="status">{notice}</div>}
-      <nav className="owner-tabs" aria-label="Owner sections">{[['overview', 'Overview'], ['proposals', 'Proposals'], ['sources', 'Sources'], ['publications', 'Publications']].map(([id, label]) => <button key={id} className={tab === id ? 'active' : ''} aria-current={tab === id} onClick={() => setTab(id)}>{label}</button>)}</nav>
+      <nav className="owner-tabs" aria-label="Owner sections">{[['overview', 'Overview'], ['discovery', 'Discovery'], ['proposals', 'Proposals'], ['sources', 'Sources'], ['publications', 'Publications']].map(([id, label]) => <button key={id} className={tab === id ? 'active' : ''} aria-current={tab === id} onClick={() => setTab(id)}>{label}</button>)}</nav>
 
       {tab === 'overview' && overview && <>
         <section className="owner-stats">
@@ -110,12 +112,19 @@ export function Owner() {
         <section className="owner-panel"><h2>Recent publications</h2>{overview.publications.length ? overview.publications.slice(0, 5).map((p) => <div className="owner-row" key={p.id}><div><strong>{p.package_id}</strong><small>{when(p.published_at)}</small></div><span>{p.action} · {p.version}</span></div>) : <p className="muted">No publications yet.</p>}</section>
       </>}
 
+      {tab === 'discovery' && <OwnerDiscovery api={api} busy={busy} run={run} setNotice={setNotice} refreshOwner={refresh} goToProposals={() => setTab('proposals')} />}
+
       {tab === 'proposals' && <section className="owner-panel">
         <div className="owner-section-head"><div><h2>Knowledge proposals</h2><p className="muted">Nothing is visible to learners until a proposal is approved and then separately verified and published.</p></div>
-          <select aria-label="Proposal status" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="pending">Pending</option><option value="approved">Approved</option><option value="published">Published</option><option value="rejected">Rejected</option><option value="all">All</option></select></div>
-        {proposals.length === 0 ? <p className="muted">No proposals in this view.</p> : proposals.map((p) => <article className="proposal-card" key={p.id}>
+          <select aria-label="Proposal status" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="pending">Pending</option><option value="approved">Approved</option><option value="published">Published</option><option value="rejected">Rejected</option><option value="all">All</option></select>
+          <select aria-label="Proposal origin" value={originFilter} onChange={(e) => setOriginFilter(e.target.value)}><option value="all">All origins</option><option value="pipeline">Extracted from sources</option><option value="bootstrap">Bootstrap</option><option value="owner">Owner</option></select></div>
+        {visible.length === 0 ? <p className="muted">No proposals in this view.</p> : visible.map((p) => <article className="proposal-card" key={p.id}>
           <div className="proposal-meta"><span>#{p.id} · {p.kind} · {p.origin}</span><span>{p.status}</span></div>
           <h3>{p.title}</h3><p className="muted">{p.rationale || 'No rationale supplied.'}</p>
+          {p.provenance && <p className="muted">Source: <a href={p.provenance.sourceUrl} target="_blank" rel="noreferrer noopener">{p.provenance.sourceUrl}</a> · extracted content hash {p.provenance.contentHash.slice(0, 12)}…</p>}
+          {p.provenance?.sourceChanged && p.status !== 'rejected' && p.status !== 'published' && <p className="owner-error" role="alert">The source changed after this was extracted. This proposal is stale and cannot be published; re-extract the source and review the new proposal.</p>}
+          {Array.isArray(p.analysis?.findings) && p.analysis.findings.length > 0 && <p className="muted">Findings: {p.analysis.findings.map((f: { severity: string; type: string }) => `${f.severity}: ${f.type}`).join(' · ')}</p>}
+          {p.analysis?.validation?.warnings?.some((w: string) => /license/i.test(w)) && <p className="owner-error">Source license is not recorded; this content cannot be published until it is.</p>}
           <details><summary>Inspect proposed content and validation findings</summary><pre>{JSON.stringify({ entry: p.payload, analysis: p.analysis }, null, 2)}</pre></details>
           {p.status === 'pending' && <>
             <textarea aria-label={`Review note for proposal ${p.id}`} placeholder="Optional approval note; required when rejecting" value={notes[p.id] || ''} onChange={(e) => setNotes((v) => ({ ...v, [p.id]: e.target.value }))} />

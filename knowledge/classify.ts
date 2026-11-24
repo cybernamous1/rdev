@@ -34,3 +34,19 @@ export function classificationWarnings(e: Entry): string[] {
   if (e.level === 'Beginner' && c.suggestedLevel === 'Intermediate') out.push(`Entry "${e.id}": code uses server/data APIs usually taught at Intermediate level.`);
   return out;
 }
+
+/** Keyword classification of free text (used for discovery candidates and extracted pages). Transparent rules, no AI. */
+export function classifyText(text: string, title = ''): { path: string | null; confidence: number; ranked: { path: string; score: number }[]; matched: string[] } {
+  const body = text.toLowerCase(); const head = title.toLowerCase(); const matched = new Set<string>();
+  const ranked = PATHS.map((p) => {
+    let score = 0;
+    for (const k of p.keywords) {
+      const hits = body.split(k).length - 1; const inTitle = head.includes(k);
+      if (hits || inTitle) matched.add(k);
+      score += Math.min(hits, 5) + (inTitle ? 4 : 0);
+    }
+    return { path: p.name, score };
+  }).sort((a, b) => b.score - a.score);
+  const total = ranked.reduce((n, r) => n + r.score, 0);
+  return { path: ranked[0].score > 0 ? ranked[0].path : null, confidence: total ? ranked[0].score / total : 0, ranked, matched: [...matched] };
+}

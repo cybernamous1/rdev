@@ -7,13 +7,14 @@ import { ROOT } from './helpers/sqlite.ts';
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const read = (f: string) => readFileSync(join(ROOT, f), 'utf8');
 
-test('version is 0.3.0 everywhere it is declared', () => {
-  assert.equal(pkg.version, '0.3.0');
+test('versions: package and schema are 0.4.0; the public learner API contract stays 0.3.0', () => {
+  assert.equal(pkg.version, '0.4.0');
   assert.match(read('worker/public-api.ts'), /API_VERSION = '0\.3\.0'/);
   assert.match(read('src/pages/Personal.tsx'), /0\.3\.0/);
   assert.match(read('public/sw.js'), /rdev-academy-v3/);
   assert.match(read('knowledge/acquire.ts'), /RDevAcademyKnowledgeBot\/0\.3/);
-  assert.match(read('database/init.sql'), /schema_version','0\.3\.0'/);
+  assert.match(read('database/init.sql'), /schema_version','0\.4\.0'/);
+  assert.match(read('database/upgrade-0.4.0.sql'), /schema_version'/);
 });
 
 test('intended stack is restored and unnecessary dependencies stay out', () => {
@@ -37,4 +38,13 @@ test('learner remains accountless while owner administration is isolated', () =>
   assert.ok(!/\/api\/admin/.test(read('public/sw.js')) && /startsWith\('\/api\/'\)/.test(read('public/sw.js')), 'service worker never caches /api');
   assert.ok(read('worker/index.ts').includes("app.all('/api/admin/*'"));
   assert.ok(read('worker/admin-api.ts').includes('OWNER_ADMIN_TOKEN'));
+});
+
+test('discovery stays owner-only: no learner route, table access or AI/agent service', () => {
+  const learner = ['worker/public-api.ts', 'src/App.tsx', 'src/services/initialize.ts', 'src/services/platform.ts', 'public/sw.js'].map(read).join('\n');
+  assert.ok(!/discover|extraction_runs|proposal_provenance|discovery_runs/i.test(learner.replace(/^\s*\/\/.*$/gm, '')), 'learner code and public API never touch discovery');
+  assert.ok(!/api\.openai|api\.anthropic|generativelanguage|cohere|llm/i.test(['worker/discovery-api.ts', 'knowledge/discover.ts', 'knowledge/ingest.ts', 'knowledge/retrieve.ts'].map(read).join('\n')), 'no AI research agent');
+  assert.ok(!/api\/v1\/.*discover/i.test(read('worker/index.ts')), 'no public discovery endpoint');
+  const w = read('wrangler.jsonc'); assert.ok(!/kv_namespaces|durable_objects|r2_buckets|queues|triggers|cron/.test(w), 'no new services or scheduled jobs');
+  assert.ok(/\/api\/admin\/\*/.test(read('worker/index.ts')));
 });

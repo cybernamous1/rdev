@@ -1,4 +1,4 @@
--- RDev Academy v0.3.0 — DELETE ALL DATABASE OBJECTS (DESTRUCTIVE)
+-- RDev Academy v0.4.0 — DELETE ALL DATABASE OBJECTS (DESTRUCTIVE)
 -- ============================================================================
 -- WARNING: Permanently deletes ALL RDev Academy tables and every row in them:
 --   published knowledge, entry/package version history, proposals and their audit
@@ -16,6 +16,10 @@
 -- schema and fails if this order is ever wrong. The legacy v0.1.0/v0.2.0 schemas declared no
 -- foreign keys, so their position here is not order-sensitive; it is verified anyway.
 -- ============================================================================
+DROP TABLE IF EXISTS proposal_provenance;
+DROP TABLE IF EXISTS extraction_runs;
+DROP TABLE IF EXISTS discovered_sources;
+DROP TABLE IF EXISTS discovery_runs;
 DROP TABLE IF EXISTS security_events;
 DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS admin_sessions;
