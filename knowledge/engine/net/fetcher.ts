@@ -43,7 +43,9 @@ async function readCapped(res: Response, max: number): Promise<Uint8Array | null
 /** Decompress gzip bytes (e.g. sitemap.xml.gz) with a hard output cap. Uses the web-standard DecompressionStream. */
 export async function gunzip(bytes: Uint8Array, max = 5_000_000): Promise<Uint8Array | null> {
   if (bytes.length < 2 || bytes[0] !== 0x1f || bytes[1] !== 0x8b) return bytes;
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const source = new Response(bytes).body;
+  if (!source) return null;
+  const stream = source.pipeThrough(new DecompressionStream('gzip'));
   const reader = stream.getReader(); const chunks: Uint8Array[] = []; let total = 0;
   for (;;) { const { done, value } = await reader.read(); if (done) break; total += value.length; if (total > max) { await reader.cancel(); return null; } chunks.push(value); }
   const out = new Uint8Array(total); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; } return out;
