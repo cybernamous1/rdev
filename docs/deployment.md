@@ -1,4 +1,4 @@
-# Deployment and validation (v0.4.0)
+# Deployment and validation (v0.5.0)
 
 **Nothing has been deployed, pushed, published or executed against Cloudflare.**
 
@@ -22,4 +22,15 @@
 4. Connect the repository to a Worker (Workers Builds): build `npm run build`, deploy `npx wrangler deploy`. The site works with an empty database.
 5. Later phases: owner authentication, review/publish UI, pipeline.
 
-**v0.4.0 validation:** local TypeScript checks, Vite build and unpublished-content bundle check pass. The test suites were not run for this update because they execute SQL against SQLite; no live D1, deployment or live source sites were used.
+**v0.4.0 validation:** discovery tests (`tests/discovery.test.ts`, fake network, SQLite) and the upgrade-equivalence test pass locally. Not run: `npm ci`, `tsc -b`, `vite build`, real Hono, wrangler, live D1, live source sites.
+
+## v0.5.0 additions (see `v0.5.0-implementation-report.md` for the full report)
+
+| Check | Status |
+| --- | --- |
+| `node --test tests/engine-*.test.ts` (68 tests: network policy, robots, fetcher, parsing, discovery, licensing, monitoring, runtime registry, WebAssembly adapter, migration on a v0.4.0 copy, orchestrator + owner API end to end) | Passed locally on Node + SQLite (`node:sqlite`) with a fake web. **Not Cloudflare, not D1, no real internet.** |
+| `npm run workers-compat` | Passed: static scan that engine sources use only web-standard APIs. **Not a workerd run.** |
+| `npm run modules:verify` | Passed (no optional-language modules ship). |
+| Strict TypeScript check of the new files | Passed in the author's sandbox with stand-ins for React and for baseline files missing from the uploaded archive. Real `npm run typecheck` **NOT RUN.** |
+| Existing v0.4.0 suites (`tests/sql.test.ts`, `project.test.ts`, `discovery.test.ts`, `database/tests/test_db.py`) | Edited for 0.5.0 but **could not be run**: the uploaded archive lacks `tests/helpers/sqlite.ts`, `scripts/sql-statements.ts`, `shared/*` and other baseline files. Run them in the full repository. |
+| `wrangler dev` / `wrangler deploy`, D1 execution of `upgrade-0.5.0.sql`, behaviour of the engine against the real internet | **NOT RUN.** |

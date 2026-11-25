@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../components/Icon.tsx';
 import { PATHS } from '../../shared/paths.ts';
+import { AdaptivePanel, CandidateInsight } from './OwnerDiscoveryV5.tsx';
 
 type Seed = { id: string; label: string; url: string; category: string; lastRun: { status: string; new_candidates: number; started_at: string; note: string | null } | null };
 type Candidate = { id: number; url: string; title: string; publisher: string; category: string; suggested_path: string | null; relevance: number; discovered_via: string; status: string; first_seen_at: string; review_note: string | null; registered_source_id: string | null; license: string | null; last_extraction: string | null; last_extraction_at: string | null };
@@ -46,6 +47,8 @@ export function OwnerDiscovery({ api, busy, run, setNotice, refreshOwner, goToPr
       {seeds.map((s) => <div className="owner-row" key={s.id}><div><strong>{s.label}</strong><small>{s.url}</small><small>{s.lastRun ? `Last run ${when(s.lastRun.started_at)} · ${s.lastRun.status}${s.lastRun.status === 'completed' ? ` · ${s.lastRun.new_candidates} new` : ''}` : 'Never run'}</small></div><button className="quiet-btn" disabled={busy} onClick={() => void discover(s)}><Icon name="refresh" /> Find sources</button></div>)}
     </section>
 
+    <AdaptivePanel api={api} busy={busy} run={run} setNotice={setNotice} />
+
     {changes && (changes.outdatedPublished.length > 0 || changes.staleProposals.length > 0) && <section className="owner-panel owner-warn">
       <h2>Changed sources</h2><p className="muted">Approved sources whose content changed after extraction. Nothing is altered automatically.</p>
       {changes.outdatedPublished.map((f) => <div className="owner-row" key={f.entryId}><div><strong>Published entry may be outdated: {f.entryId}</strong><small>{f.detail}</small></div></div>)}
@@ -70,6 +73,7 @@ export function OwnerDiscovery({ api, busy, run, setNotice, refreshOwner, goToPr
               <textarea aria-label={`Rejection reason for candidate ${c.id}`} placeholder="Reason (required to reject)" value={notes[c.id] || ''} onChange={(e) => setNotes((v) => ({ ...v, [c.id]: e.target.value }))} />
               <div className="proposal-actions"><button className="primary-btn" disabled={busy} onClick={() => setApproving(c.id)}>Approve source…</button><button className="danger-btn" disabled={busy || !(notes[c.id] || '').trim()} onClick={() => void decide(c, 'reject')}>Reject</button></div>
             </>)}
+        <CandidateInsight api={api} busy={busy} run={run} setNotice={setNotice} id={c.id} refresh={load} />
         {c.status === 'rejected' && <p className="muted">Reason: {c.review_note}</p>}
         {c.status === 'approved' && <>
           <p className="muted">Registered as <code>{c.registered_source_id}</code> · {c.license || 'No license recorded'}{c.last_extraction ? ` · last extraction: ${EXTRACT_LABEL[c.last_extraction] || c.last_extraction}${c.last_extraction_at ? ` (${when(c.last_extraction_at)})` : ''}` : ' · not extracted yet'}</p>

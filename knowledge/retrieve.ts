@@ -23,9 +23,9 @@ export async function retrieve(rawUrl: string, accept = 'text/html,text/plain,te
   if (!url) return fail('URL is not HTTPS on the approved host list.');
   try {
     for (let hop = 0; hop <= 3; hop++) {
-      const res: Response = await fetch(url.toString(), { redirect: 'manual', headers: { 'user-agent': 'RDevAcademyKnowledgeBot/0.4 (+educational; owner-triggered; respects source terms)', accept }, signal: AbortSignal.timeout(15000) });
+      const res = await fetch(url.toString(), { redirect: 'manual', headers: { 'user-agent': 'RDevAcademyKnowledgeBot/0.4 (+educational; owner-triggered; respects source terms)', accept }, signal: AbortSignal.timeout(15000) });
       if (res.status >= 300 && res.status < 400) {
-        const loc: string | null = res.headers.get('location'); let next: URL | null = null;
+        const loc = res.headers.get('location'); let next: URL | null = null;
         try { next = loc ? isAllowedUrl(new URL(loc, url).toString()) : null; } catch { next = null; }
         if (!next) return fail(`Redirect (HTTP ${res.status}) to a location outside the approved host list was not followed.`, res.status);
         url = next; continue;

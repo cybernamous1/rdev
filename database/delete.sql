@@ -16,6 +16,12 @@
 -- schema and fails if this order is ever wrong. The legacy v0.1.0/v0.2.0 schemas declared no
 -- foreign keys, so their position here is not order-sensitive; it is verified anyway.
 -- ============================================================================
+DROP TABLE IF EXISTS license_reviews;
+DROP TABLE IF EXISTS license_evidence;
+DROP TABLE IF EXISTS discovered_source_meta;
+DROP TABLE IF EXISTS discovery_frontier;
+DROP TABLE IF EXISTS discovery_jobs;
+DROP TABLE IF EXISTS host_policies;
 DROP TABLE IF EXISTS proposal_provenance;
 DROP TABLE IF EXISTS extraction_runs;
 DROP TABLE IF EXISTS discovered_sources;

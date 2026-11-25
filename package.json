@@ -1,7 +1,7 @@
 {
   "name": "rdev-academy",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "engines": { "node": ">=22.6" },
   "scripts": {
@@ -15,6 +15,8 @@
     "kb:validate": "node --experimental-strip-types --no-warnings scripts/kb.ts validate",
     "kb:bootstrap": "node --experimental-strip-types --no-warnings scripts/kb.ts bootstrap",
     "kb:snapshot": "node --experimental-strip-types --no-warnings scripts/kb.ts snapshot",
+    "modules:verify": "node --experimental-strip-types --no-warnings scripts/verify-modules.ts",
+    "workers-compat": "node --experimental-strip-types --no-warnings scripts/verify-workers-compat.ts",
     "kb:check-bundle": "node --experimental-strip-types --no-warnings scripts/kb.ts check-bundle",
     "db:statements": "node --experimental-strip-types --no-warnings scripts/sql-statements.ts"
   },

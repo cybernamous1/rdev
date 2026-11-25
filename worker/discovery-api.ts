@@ -6,12 +6,16 @@
 import { validatePackage, type Entry, type RlfPackage, type Source } from '../shared/rlf.ts';
 import { PATHS } from '../shared/paths.ts';
 import { SEEDS, seedById, extractLinks, candidatesFrom, contentUrls, type Candidate } from '../knowledge/discover.ts';
-import { retrieve, type Retrieved } from '../knowledge/retrieve.ts';
+import { retrieve, isAllowedUrl, type Retrieved } from '../knowledge/retrieve.ts';
 import { extractContent, entryIdFor, buildEntry } from '../knowledge/ingest.ts';
 import { analyzeEntries, detectOutdated, summarize, type Finding } from '../knowledge/duplicates.ts';
 import { buildRelationships } from '../knowledge/relate.ts';
 import { sha256Hex } from '../knowledge/acquire.ts';
 import type { AdminDb, AdminStmt } from './admin-api.ts';
+import { classifyText } from '../knowledge/classify.ts';
+import { discoveryV5Api, licensingSnapshot, categoryLabelFor } from './discovery-v5-api.ts';
+import { PoliteFetcher } from '../knowledge/engine/net/fetcher.ts';
+import { D1HostPolicies } from './discovery-v5-store.ts';
 
 export type DiscoveryCtx = {
   db: AdminDb; request: Request; url: URL; path: string; sessionId: string;
@@ -33,6 +37,9 @@ async function publishedEntries(db: AdminDb): Promise<Entry[]> {
 
 export async function discoveryApi(c: DiscoveryCtx): Promise<Response | null> {
   if (!c.path.startsWith('/api/admin/discovery')) return null;
+  // v0.5.0 routes (adaptive discovery, licensing intelligence) live in their own module and have their own missing-table message.
+  const v5 = await discoveryV5Api(c, { classify: (text, title) => { const r = classifyText(text, title); return { path: r.path, score: r.ranked[0].score }; } });
+  if (v5) return v5;
   try { return await route(c); }
   catch (e) {
     if (/no such table/i.test((e as Error).message)) return c.json({ error: 'The discovery tables are missing. Apply database/upgrade-0.4.0.sql (after a backup) when you are ready; nothing was changed.' }, 503);
@@ -153,7 +160,7 @@ async function extract(c: DiscoveryCtx, cand: any, body: Record<string, any>): P
   };
 
   let page: Retrieved | null = null; let last = '';
-  for (const u of contentUrls(src.url)) { const r = await retrieve(u); if (r.ok) { page = r; break; } last = r.note; }
+  for (const u of contentUrls(src.url)) { const r = await retrieveApproved(c, u); if (r.ok) { page = r; break; } last = r.note; }
   if (!page) return finish('failed', null, null, null, `Retrieval failed: ${last}`, 502);
   const x = await extractContent(page);
   if (!x) return finish('failed', null, page.status, null, 'No extractable text was found (the page may be rendered by scripts, or is not a documentation page).', 422);
@@ -164,7 +171,8 @@ async function extract(c: DiscoveryCtx, cand: any, body: Record<string, any>): P
   const entryId = await entryIdFor(cand.url);
   const published = await publishedEntries(db);
   const current = published.find((e) => e.id === entryId) || null;
-  const built = buildEntry(x, { id: entryId, sourceId, categoryLabel: cand.category === 'official-docs' ? 'Official documentation' : cand.category === 'language' ? 'Luau language' : 'Repository', now, pathOverride });
+  const v5Label = await categoryLabelFor(c, cand.id); // v0.5.0: a third-party tutorial is not labelled "Official documentation"
+  const built = buildEntry(x, { id: entryId, sourceId, categoryLabel: v5Label ?? (cand.category === 'official-docs' ? 'Official documentation' : cand.category === 'language' ? 'Luau language' : 'Repository'), now, pathOverride });
   const entry = built.entry;
   if (!entry.path) return finish('unclassified', x.contentHash, page.status, x.title, 'The content could not be matched to a learning path by the keyword rules. Re-run extraction and choose a learning path yourself.');
   if (current) entry.path = current.path; // an update stays in its published package
@@ -183,10 +191,14 @@ async function extract(c: DiscoveryCtx, cand: any, body: Record<string, any>): P
   const related = buildRelationships([entry, ...pool]).filter((r) => r.from === entry.id && r.type === 'related').map((r) => ({ id: r.to, reason: r.reason }));
   const warnings = [...v.warnings]; if (x.truncated) warnings.push('Extracted content was truncated to fit the proposal size limit.');
   if (!src.license) warnings.push('The source has no recorded license. Imported content cannot be published until a license is recorded for the source.');
+  const licensing = await licensingSnapshot(c, cand.id); // null when the v0.5.0 tables are not installed
+  if (licensing && licensing.assessment.reuse.status !== 'indicated-permissive' && licensing.assessment.reuse.status !== 'indicated-conditional') warnings.push(`Licensing evidence status: ${licensing.assessment.reuse.status}. Not cleared for reuse.`);
+  if (licensing && !licensing.clearance) warnings.push('No licensing clearance has been recorded by the owner for this source.');
   const analysis = {
-    generator: 'rdev-kb 0.4.0 discovery', comparedAgainst: pool.length, findings, summary: summarize(findings), validation: { errors: v.errors, warnings },
+    generator: 'rdev-kb 0.5.0 discovery', comparedAgainst: pool.length, findings, summary: summarize(findings), validation: { errors: v.errors, warnings },
     classification: { method: 'keyword-rules', path: entry.path, pathSource: built.pathSource, confidence: Math.round(built.classification.confidence * 100) / 100, ranked: built.classification.ranked.slice(0, 3), level: entry.level },
-    related, source: { id: sourceId, url: src.url, contentHash: x.contentHash, retrievedAt: now, license: src.license }, change: kind === 'update' ? 'changed-source' : 'new-content'
+    related, source: { id: sourceId, url: src.url, contentHash: x.contentHash, retrievedAt: now, license: src.license }, change: kind === 'update' ? 'changed-source' : 'new-content',
+    ...(licensing ? { licensing } : {})
   };
   const payloadHash = await sha256Hex(JSON.stringify({ ...entry, updatedAt: '' }));
   const dup = await db.prepare('SELECT id,status FROM proposals WHERE kind=? AND target_entry_id=? AND payload_hash=?').bind(kind, entryId, payloadHash).first<any>();
@@ -229,4 +241,14 @@ async function changes(c: DiscoveryCtx): Promise<Response> {
     outdated.push(...detectOutdated([{ id: row.id, sourceIds: [row.source_id] } as Entry], [{ id: row.source_id, contentHash: row.hash }], latest.results.filter((l) => l.id === row.source_id).map((l) => ({ id: l.id, contentHash: l.hash }))));
   }
   return json({ sources: sources.results, staleProposals: stale.results, outdatedPublished: outdated });
+}
+
+/** Retrieval for an owner-APPROVED source. The v0.4.0 host allow-list path is unchanged; any other approved public host is read through the
+ *  robots-respecting v0.5.0 fetcher (SSRF-safe, size-capped, never executed). Approval of the source by the owner is still required before this runs. */
+async function retrieveApproved(c: DiscoveryCtx, url: string): Promise<Retrieved> {
+  const first = await retrieve(url); if (first.ok || isAllowedUrl(url)) return first;
+  const f = new PoliteFetcher({ fetchImpl: (i, init) => fetch(i, init), store: new D1HostPolicies(c.db), minDelayMs: 0 });
+  const r = await f.fetch(url, { accept: 'text/html,text/plain,text/markdown' });
+  if (r.kind === 'ok') return { ok: true, status: r.status, finalUrl: r.finalUrl, contentType: r.contentType, text: r.text, note: `Retrieved ${r.bytes.length} bytes.` };
+  return { ok: false, status: r.kind === 'error' ? r.status : null, finalUrl: url, contentType: '', text: '', note: r.kind === 'blocked' ? r.detail : r.kind === 'deferred' ? `${r.reason} (try again shortly)` : r.kind === 'error' ? r.note : 'not modified' };
 }

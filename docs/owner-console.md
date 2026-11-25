@@ -75,3 +75,12 @@ discovery roots ─► CANDIDATE sources (pending) ─► owner approves/rejects
 * Change detection compares extraction hashes only; sources registered manually or checked with *Check source* are not covered. The classifier is keyword-based and can be wrong, so check the suggested path.
 * Candidates and decisions cannot be edited, deleted or reopened from the console.
 * Payload size is capped for D1's per-statement limit, so very long pages are truncated.
+
+## Adaptive discovery and licensing (v0.5.0)
+
+Inside **Discovery** (only when `upgrade-0.5.0.sql` has been applied; otherwise a harmless notice is shown):
+
+* **Adaptive discovery:** paste any public https starting point and press *Start discovery job*, then *Run next step* repeatedly. Each step reads at most about ten pages, so it is short and can be repeated after an interruption. New candidates appear in *Candidate sources* as **pending**.
+* **Why suggested · licensing evidence** (on every candidate): a concise explanation, the licensing assessment (`indicated-permissive`, `indicated-conditional`, `restricted`, `conflicting`, `ambiguous` or `no-evidence`), restrictions in plain words, confidence, and every evidence item with its exact URL, original excerpt, scope and detection time. *Scan for licence evidence* reads the page and up to two linked licence/terms pages; *Re-check source* reports whether it changed.
+* **Record a licensing decision:** a separate, append-only decision (cleared / cleared with conditions / denied) with basis, scope, and reason. Ambiguous, conflicting, restricted or evidence-free material can only be cleared after you tick an explicit acknowledgement. This never approves the source and never approves a proposal.
+* Proposals extracted from a source show its licensing status and whether you have recorded a clearance.

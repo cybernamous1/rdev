@@ -1,6 +1,6 @@
 # RDev Academy
 
-**Create. Learn. Develop.** A free, independent learning hub for Roblox development. Version **0.4.0** (owner console with knowledge discovery).
+**Create. Learn. Develop.** A free, independent learning hub for Roblox development. Version **0.5.0** (adaptive global knowledge discovery and licensing intelligence on top of the v0.4.0 owner console).
 
 No learner accounts, registration, login, OAuth, subscriptions or paywalls. Bookmarks, notes, preferences and progress stay in the browser (IndexedDB). No external hosted AI service is used.
 
@@ -66,3 +66,7 @@ See the *Validation* section of `docs/deployment.md`. In short: tests listed abo
 ## Owner console
 
 The private owner console is available at `/#/owner` after configuring the `OWNER_ADMIN_TOKEN` Worker secret. See [docs/owner-console.md](docs/owner-console.md) for setup, security behavior, supported operations, and current limitations. The learner website remains accountless.
+
+## v0.5.0 in one paragraph
+
+Discovery is no longer limited to a handful of official pages: the owner gives a starting point (any public https page, sitemap, feed or GitHub repository) and a layered, resumable engine follows links, feeds, sitemaps and `robots.txt` hints to find English-language educational and programming resources on any host, while respecting `robots.txt`, rate limits and access restrictions. Every candidate arrives **pending**, with an explanation and **licensing evidence** (exact URL, excerpt, scope, confidence, restrictions). Source approval, proposal approval and licensing clearance remain three separate owner decisions; nothing is ever approved, cleared or published automatically. See `docs/discovery-engine.md`, `docs/licensing-intelligence.md` and `docs/v0.5.0-implementation-report.md`.

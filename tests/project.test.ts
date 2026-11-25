@@ -7,13 +7,13 @@ import { ROOT } from './helpers/sqlite.ts';
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const read = (f: string) => readFileSync(join(ROOT, f), 'utf8');
 
-test('versions: package and schema are 0.4.0; the public learner API contract stays 0.3.0', () => {
-  assert.equal(pkg.version, '0.4.0');
+test('versions: package and schema are 0.5.0; the public learner API contract stays 0.3.0', () => {
+  assert.equal(pkg.version, '0.5.0');
   assert.match(read('worker/public-api.ts'), /API_VERSION = '0\.3\.0'/);
   assert.match(read('src/pages/Personal.tsx'), /0\.3\.0/);
   assert.match(read('public/sw.js'), /rdev-academy-v3/);
   assert.match(read('knowledge/acquire.ts'), /RDevAcademyKnowledgeBot\/0\.3/);
-  assert.match(read('database/init.sql'), /schema_version','0\.4\.0'/);
+  assert.match(read('database/init.sql'), /schema_version','0\.5\.0'/);
   assert.match(read('database/upgrade-0.4.0.sql'), /schema_version'/);
 });
 

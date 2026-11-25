@@ -1,4 +1,6 @@
-# Architecture (v0.4.0)
+# Architecture (v0.5.0)
+
+v0.5.0 adds a layered discovery engine under `knowledge/engine/` (see `discovery-engine.md`); everything below is unchanged.
 
 ```
   discovery roots ► candidate sources (pending) ► OWNER approves ► ledger ► extract ► (below)
